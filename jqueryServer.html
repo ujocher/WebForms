@@ -63,9 +63,9 @@
 		  var v2 = varr[1];
 	    }
 	    if (v1 === oldValue) {
-          var str = "<option value=" + v1 + " #if ($!variables.xx.equals(" + v1 + ")) selected #end>" + v2 + "</option>"
+         var str = '<option value="' + v1 + '" selected>' + v2 + '</option>'
 	    } else {
-	      var str = "<option value=" + v1 + " #if ($!variables.xx.equals(" + v1 + "))#end>" + v2 + "</option>"
+	      var str = '<option value="' + v1 + '">' + v2 + '</option>'
         }	  
         $dropList.append(str);
 	  }
@@ -97,7 +97,7 @@
           bool = bool && (elem == values[indexes[k]]);
 	    }
 		if (bool) {     /* if the element is a valid value based on the previous dropdown choices add it to the list */
-		  console.log(data[i]);
+		  console.log("j: " + j + "   " + data[i]);
 		  lists[ind][elems[ind]] = elems[ind];
 		}
 	  }
@@ -120,74 +120,24 @@
 
 	for(var i = 1; i < ret.length; i++) {
 	  var id = "#" + order[ret[i]];
-	  updateDropdown(id, lists[ret[i]], values[i])
+	  updateDropdown(id, lists[ret[i]], values[ret[i]])
 	}
 	
   }
-  
-  function locationChanged() {
-    console.log("locationChanged");
-	
-    var loc = $("#loc").val();
-    var zone = $("#zone").val();
-    var env = $("#env").val();
-	
-	console.log('zone: ' + zone + '\t env: ' + env);
-	
-	var ret = updateBuffer("loc", buffer, data);
-	
-	var a = extractList(ret, [loc, zone, env], data)
-/*	var a = extractList([0,1,2], [loc, zone, env])	 */
-	updateDropdown("#zone", a[1], zone)
-	updateDropdown("#env", a[2], env)	
-  }	
-  
-  
-  function zoneChanged(me) {
-    console.log("zoneChanged");
-	
-    var loc = $("#loc").val();
-    var zone = $("#zone").val();
-    var env = $("#env").val();
-	
-	console.log('loc: ' + loc + '\t env: ' + env);
-	console.log('me: ' + me);
-	
-	var ret = updateBuffer("zone", buffer, data);
-	
-/*	var a = extractList([1,0,2], [loc, zone, env]) */
-	var a = extractList(ret, [loc, zone, env], data)
-	updateDropdown("#loc", a[0], loc)
-	updateDropdown("#env", a[2], env)	
-  }	
-
-  function envChanged() {
-    console.log("envChanged");
-	
-    var loc = $("#loc").val();
-    var zone = $("#zone").val();
-    var env = $("#env").val();
-	
-	console.log('loc: ' + loc + '\t zone: ' + zone);
-	
-	var ret = updateBuffer("env", buffer, data);
-	
-	var a = extractList(ret, [loc, zone, env], data)
-	/*var a = extractList([2,0,1], [loc, zone, env]) */	
-	updateDropdown("#loc", a[0], loc)	
-	updateDropdown("#zone", a[1], zone)
-  }	
   
 function nextPage() {
     var loc = $("#loc").val();
     var zone = $("#zone").val();
     var env = $("#env").val();
 
-	var $str = "<h1>Summary</h1><br>";
-	$str += "Location: " + loc + "<br><br>"
-	$str += "Zone: " + zone + "<br><br>";
-    $str += "Environment: " + env + "<br><br>";
-    $str += 'Are you sure to proceed<nbsp>   <button type="button" onclick="Deploy()">Yes</button><button type="button" onclick="prevPage()">No</button>';
+	var $str = '<h1 align="center">Summary</h1><br>';
+	$str += '<table class="mytab">'
+	$str += "<td>Location: </td><td>" + loc + "<br></td></tr>"
+	$str += "<td>Zone: </td><td>" + zone + "<br></td></tr>";
+    $str += "<td>Environment: </td><td>" + env + "<br></td></tr>";
+	$str += "</table>"
+    $str += '<br><table class="mytab"><tr><td>Are you sure to proceed</td>'
+	$str += '<td><button type="button" onclick="Deploy()">Yes</button></td><td><button type="button" onclick="prevPage()">No</button></td></tr></table>';
 	
   $("#summary").html($str); 
   $("#page-wrap").hide();
@@ -253,7 +203,11 @@ function nextPage() {
     visibility: visible;
 }
 
-}
+.mytab {
+  padding: 10px;
+  border-spacing: 10px;
+}  
+
  </style>
 
  <div id="page-wrap">
@@ -261,7 +215,7 @@ function nextPage() {
 
  <br><br><br>
  
-<table cellpadding="10">
+<table class="mytab">
   <tr>
     <td>
       <span>Region
