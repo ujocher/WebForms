@@ -276,7 +276,7 @@ function nextPage() {
       </span>
     </td>
     <td>
-      <select id="loc" onchange='locationChanged()' name="loc">
+      <select id="loc" onchange='dropdownChanged(this, data)' name="loc">
         <option value="DE" selected>DE</option>
         <option value="US" >US</option>
       </select>
@@ -320,7 +320,7 @@ function nextPage() {
       </span>
 	</td>
 	<td>
-      <select id="env"  onchange='envChanged()' value="$!{variables.env}" name="variables['env']">
+      <select id="env"  onchange='dropdownChanged(this, data)' name="env">
         <option value="DEV" selected>Development</option>
         <option value="PRD" >Production</option>
         <option value="STG" >Stage</option>
