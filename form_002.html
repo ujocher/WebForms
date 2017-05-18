@@ -1,0 +1,309 @@
+<script src="https://ipcenter-dev.pwcinternal.com/jquery/jquery.min.js"></script>
+<script>
+  var split1 = "_";
+  var split2 = "|";
+  var data = ["loc_zone_env",
+              "DE_INT_DEV|Developement", "DE_INT_PRD|Production", "DE_INT_STG|Stage", "DE_INT_TST|Test POC", 
+              "DE_EXT_DEV|Developement", "DE_EXT_PRD|Production", "DE_EXT_STG|Stage", 
+              "US_INT_PRD|Production", "US_INT_STG|Stage", 
+			  "US_EXT_PRD|Production", "US_EXT_STG|Stage"];
+
+  var order = ["loc", "zone", "env"];
+  
+  var buffer = [];
+  buffer["loc"] = 0;
+  buffer["zone"] = 1;
+  buffer["env"] = 2;
+
+/* places the newTop label on top of the list and scales all elements that were above the element 
+   The result is a list of element indexes in the order of last change */
+  function updateBuffer(newTop, buffer, data) {
+    var oldIndex = buffer[newTop];
+	var order = data[0].split(split1);
+    for(var i in buffer) {
+	  if (buffer.hasOwnProperty(i)) {
+	    if (buffer[i] < oldIndex) {
+		  buffer[i]++;
+		}
+	  }
+	}
+	buffer[newTop] = 0;
+	/* generate a list of indexes orderd by last use */
+	var ret = [];
+	var found = "";
+	for(var i = 0; i < order.length; i++) {
+	  for(var obj in buffer) {   /* find label with rank i*/
+   	    if (buffer.hasOwnProperty(obj)) {
+		  if (buffer[obj] == i) {
+		    found = obj
+		  }
+		}
+	  }
+      ret[i] = order.indexOf(found);
+	}
+	return ret;
+  }
+
+/* updates the dropdownlist with id ListID with newValues and select oldValue if still part of the list */  
+  function updateDropdown(listID, newValues, oldValue) {
+    console.log("updating: " + listID + "  old Value: " + oldValue);
+    var $dropList = $(listID);
+    $dropList.empty();
+	for(var index in newValues) {
+	  if (newValues.hasOwnProperty(index)) {
+        var value = newValues[index];	   
+	    var pos = value.indexOf(split2);
+	    if (pos == -1) { 
+	      var v1 = value;
+		  var v2 = value;
+	    } else {
+	      varr = value.split(split2);
+	      var v1 = varr[0];
+		  var v2 = varr[1];
+	    }
+	    if (v1 == oldValue) {
+          var str = '<option value="' + v1 + '" selected>' + v2 + '</option>'
+	    } else {
+	      var str = '<option value="' + v1 + '">' + v2 + '</option>'
+        }	  
+        $dropList.append(str);
+	  }
+    }
+  }
+
+/* Generates a list for each dropdownlist based on the order given by indexes and on the current selected values */
+  function extractList(indexes, values, data) {
+    console.log("extractList");
+	
+	var count = indexes.length;
+    var len = data.length;
+	var lists = [];
+
+	for(var i = 0; i < count;i++) {    /* create an empty list for all dropdown lists */
+	  lists.push({});
+	}  
+	for (var j = 1; j < count; j++) {    /* starts from 1 as the first is the list that changed and only the other need to be updated based on the choice */
+	  var ind = indexes[j]
+      for (var i = 1; i < len; i++) {    /* first element (0) is the list order */
+        var elems =  data[i].split(split1);
+        var bool = true;
+        for (var k = 0; k < j; k++) {    /* second dropdown depends on first, third from first and second, etc. */
+		  var elem = elems[indexes[k]]
+		  var pos = elem.indexOf(split2);
+	      if (pos != -1) {
+            elem = elem.split(split2)[0];
+          }			
+          bool = bool && (elem == values[indexes[k]]);
+	    }
+		if (bool) {     /* if the element is a valid value based on the previous dropdown choices add it to the list */
+/*		  console.log(data[i]); */
+		  lists[ind][elems[ind]] = elems[ind];
+		}
+	  }
+    }	  
+    return lists;
+  }  
+  
+  function dropdownChanged(me, data) {
+    var label = me.id;
+    console.log("DropDown " + label + " changed");
+	
+    var order = data[0].split(split1);
+	var values = [];
+	for(var i = 0; i < order.length; i++) {
+	  var id = "#" + order[i];
+	  values[i] = $(id).val();
+	}
+	var ret = updateBuffer(label, buffer, data);
+	var lists = extractList(ret, values, data)
+
+	for(var i = 1; i < ret.length; i++) {
+	  var id = "#" + order[ret[i]];
+	  updateDropdown(id, lists[ret[i]], values[ret[i]])
+	}
+	
+  }
+  
+function nextPage() {
+    var loc = $("#loc").val();
+    var zone = $("#zone").val();
+    var env = $("#env").val();
+
+	var $str = '<h1 align="center">Summary</h1><br>';
+	$str += '<table class="mytab">'
+	$str += "<td>Location: </td><td>" + loc + "<br></td></tr>"
+	$str += "<td>Zone: </td><td>" + zone + "<br></td></tr>";
+    $str += "<td>Environment: </td><td>" + env + "<br></td></tr>";
+	$str += "</table>"
+    $str += '<br><table class="mytab"><tr><td>Are you sure to proceed</td>'
+	$str += '<td><button type="button" onclick="Deploy()">Yes</button></td><td><button type="button" onclick="prevPage()">No</button></td></tr></table>';
+	
+  $("#summary").html($str); 
+  $("#page-wrap").hide();
+  $("#summary").show(); 
+  } 
+  
+  function prevPage() {
+    $("#summary").hide(); 
+    $("#page-wrap").show();
+  }
+  
+  function Deploy() {
+    var loc = $("#loc").val();
+    var zone = $("#zone").val();
+    var env = $("#env").val();
+
+	var str = loc + "-" + zone + "-" + env;
+    $("#input").val(str)
+    $("#summary").hide(); 
+    $("#page-wrap").hide();
+	var $str = "<h1>Deploying..." + str + "</h1>"
+	$("#Deploy").html($str);
+	$("#Deploy").show();
+	$("#formData").submit();
+  }
+
+
+  $(document).ready(function(){
+    $(".radar_button").hide();
+  });
+
+</script>
+ <style>
+ .fxs-fill-white {fill:#fff}
+
+.tooltip {
+    position: relative;
+    display: inline-block;
+/*    border-bottom: 1px dotted black; */
+}
+
+.tooltip .tooltiptext {
+    visibility: hidden;
+    width: 200px;
+    background-color: black;
+    color: #fff;
+    text-align: left;
+    border-radius: 6px;
+    padding: 5px 10px;
+    position: absolute;
+    z-index: 1;
+    top: +20px; 
+    left: -30px;  
+
+}
+
+.tooltip .tooltiptext::after {
+    content: " ";
+    position: absolute;
+    bottom: 100%;
+    left: +30px; /* To the left of the tooltip */
+    margin-top: -5px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: transparent transparent black transparent;
+}
+
+.tooltip:hover .tooltiptext {
+    visibility: visible;
+}
+
+.mytab {
+  padding: 10px;
+  border-spacing: 10px;
+}  
+
+ </style>
+
+
+<tr>
+  <td class="list-padding radar_right radar_text">out:</td>
+  <td class="list-padding radar_left radar_text">
+    <span class="radar_error">$!{errors.out}</span>
+   <input id="input" type="hidden"  name="variables['out']">
+  </td>
+</tr>
+<tr>
+  <td>
+
+  <div id="page-wrap">
+<br><br><br>
+ 
+<table class="mytab">
+  <tr>
+    <td>
+      <span>Region
+        <div class="tooltip">
+	      <svg width="10" height="10" viewBox="0 0 9 9" focusable="false">
+            <circle cx="4.5" cy="4.5" r="4.5"></circle>
+            <rect x="4" y="4" class="fxs-fill-white" width="1" height="3"></rect>
+            <rect x="4" y="2" class="fxs-fill-white" width="1" height="1"></rect>
+          </svg>
+          <span class="tooltiptext">Please select the region where you want to deploy the servers</span>
+        </div>
+      </span>
+    </td>
+    <td>
+      <select id="loc" onchange='dropdownChanged(this, data)' name="loc">
+        <option value="DE" selected>DE</option>
+        <option value="US" >US</option>
+      </select>
+	  <br>
+    </td>
+  </tr>
+  <tr>
+    <td>
+	  <span>Zone
+        <div class="tooltip">
+	      <svg width="10" height="10" viewBox="0 0 9 9" focusable="false">
+            <circle cx="4.5" cy="4.5" r="4.5"></circle>
+            <rect x="4" y="4" class="fxs-fill-white" width="1" height="3"></rect>
+            <rect x="4" y="2" class="fxs-fill-white" width="1" height="1"></rect>
+          </svg>
+          <span class="tooltiptext">Please select the zone for the servers.<br>
+		                            EXT for external facing applications and 
+									INT for internal applications</span>
+        </div>
+      </span>
+	</td>
+    <td>
+      <select id="zone"  onchange='dropdownChanged(this, data)' name="zone">
+        <option value="INT" selected>INT</option>
+        <option value="EXT" >EXT</option>
+      </select>
+      <br>
+	</td>
+  </tr>
+  <tr>
+    <td>
+	  <span>Environment
+        <div class="tooltip">
+	      <svg width="10" height="10" viewBox="0 0 9 9" focusable="false">
+            <circle cx="4.5" cy="4.5" r="4.5"></circle>
+            <rect x="4" y="4" class="fxs-fill-white" width="1" height="3"></rect>
+            <rect x="4" y="2" class="fxs-fill-white" width="1" height="1"></rect>
+          </svg>
+          <span class="tooltiptext">Please select the Environment for for the servers.</span>
+        </div>
+      </span>
+	</td>
+	<td>
+      <select id="env"  onchange='dropdownChanged(this, data)' name="env">
+        <option value="DEV" selected>Development</option>
+        <option value="PRD" >Production</option>
+        <option value="STG" >Stage</option>
+        <option value="TST" >Test POC</option>
+      </select>
+     <br>
+    </td>
+  </tr>
+</table>
+
+<br><br>
+<button type="button" onclick='nextPage()'>Next</button>
+</div>
+  
+  <div id="summary">
+  </div>
+  <div id="Deploy">
+  </div>
