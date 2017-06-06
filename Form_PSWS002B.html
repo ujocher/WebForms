@@ -1,40 +1,40 @@
 <script src="https://ipcenter-dev.pwcinternal.com/jquery/jquery.min.js"></script>
 
 <script>
+// personalize behaviour here
+  var token = 123;
+  var domain = "intusers";
+  var minLetters = "4";
+  var doneTypingInterval = 1000;  //time in ms, 1 second for example
+// end personalization
 
-var token = 123;
-var domain = "intusers";
-var minLetters = "4";
-var doneTypingInterval = 1500;  //time in ms, 1 second for example
+  var xhttp = new XMLHttpRequest();
+  var userL = [];
+  var typingTimer;
+  var prev = "###";
 
-
-var xhttp = new XMLHttpRequest();
-var userL = [];
-var typingTimer;
-var prev = "###";
-
-
-xhttp.onreadystatechange = function() {
+  xhttp.onreadystatechange = function() {
     if (this.readyState == 4 && this.status == 200) {
-       // Typical action to be performed when the document is ready:
 	   var txt = xhttp.responseText.split("|");
-	   var str = "";
-	   var li = ""
-	   var dl = $("#UserList");
-	   dl.empty();
+	   var list = $("#userList");
+	   list.empty();
 	   for (var i = 0; i < txt.length; i++) {
-	     li = "<option value=" + '"' + txt[i].trim() + '">';
-		 dl.append(li);
+	     var qq = txt[i].search("please type additional characters");
+	     if (txt[i].search("please type additional characters") > 0) {
+		   prev = "###";
+		 }  
+	     item = "<option value=" + '"' + txt[i].trim() + '">';
+		 list.append(item);
 	   }
-       $("#xx").html("&nbsp;");	
+       $("#searching").html("&nbsp;");
     }
-};
+  };
 
 function ADSearch(text) {
-  var str = "http://10.240.248.242:8080/?token=" + token + "&action=search&domain=" + domain + "&search=" + text
-  xhttp.open("GET", str, true);
+  var uri = "http://10.240.248.242:8080/?token=" + token + "&action=search&domain=" + domain + "&search=" + text
+  xhttp.open("GET", uri, true);
   xhttp.send();
-  console.log("Request Sent");
+  console.log("AD Request Sent");
 }
 
 function doSearch(text) {
@@ -42,19 +42,20 @@ function doSearch(text) {
 	if (text.length >= minLetters) {
 	  var pos = text.search(prev)
 	  if (pos < 0) {
-	    console.log("search: " + text);
-        $("#xx").html("searching...");
+	    console.log("AD search: " + text);
+        $("#searching").html("searching...");
 	    ADSearch(text);
 	    prev = text;
 	  } else {
 	    console.log("new search is a substring of previous");
-      }	  
+      }	
+	} else {
+	  console.log("less than " + minLetters + " keys pressed");
 	}
 }
 
-var i = 0;
 $(document).ready(function(){
- $("#qq").keyup(function() {
+ $("#userInput").keyup(function() {
   clearTimeout(typingTimer);
   var text = this.value;
   typingTimer = setTimeout(function() { doSearch(text) }, doneTypingInterval);
@@ -62,25 +63,25 @@ $(document).ready(function(){
 });
 
 $(document).ready(function(){
- $("#qq").keydown(function() {
+ $("#userInput").keydown(function() {
   //on keydown, clear the countdown
   clearTimeout(typingTimer);
   });
 });
 
 function doAdd() {
-	var xx = $("#qq");
-	var u = xx.val();
-	userL.push(u);
-	var str = "";
+	var elem = $("#userInput");
+	var value = elem.val();
+	userL.push(value);
+	var str = "<div><b>Selected Users</b></div>";
 	var arr = "";
 	for(var i = 0; i < userL.length; i++) {
 	  str += userL[i] + "<br>"
 	  arr += userL[i] + "|"
 	}
 	$("#members").html(str);
-	$("#UserList").empty();
-	xx.val("");
+	$("#userList").empty();
+	elem.val("");
 	arr = arr.replace(/\|$/g,"");
 	$("#input").val(arr)
 }
@@ -100,17 +101,18 @@ function doAdd() {
 <div id="page-wrap">
 
 <h3>Please Select User</h3>
-Type minimum <script>document.write(minLetters)</script> letters to start searching
-<br><br>
-<div id="xx">&nbsp;</div>
-<input id ="qq" size="30" list="UserList" name="UserList">
-<datalist id="UserList">
+<div>
+Type minimum <script>document.write(minLetters)</script> letters to start searching (after <script>document.write(Math.round(doneTypingInterval/100)/10);</script> seconds of inactivity)
+<div>
+<div id="searching">&nbsp;</div>
+<input id ="userInput" size="30" list="userList" name="userList">
+<datalist id="userList">
 </datalist>
 </input>
 <button type="button" id="add" onclick='doAdd()'>Add</button>
 <br>
 <span></span>
 <br><br>
-<span id="members">Hello</span>
+<span id="members"></span>
 <br>
 </div>
