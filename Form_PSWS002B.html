@@ -3,16 +3,23 @@
 <script>
 // personalize behaviour here
   var token = 123;
-  var domain = "intusers";
-  var minLetters = "4";
+  var domain = "glblblue";
+  var minLetters = "3";
   var doneTypingInterval = 1000;  //time in ms, 1 second for example
+  var queryBaseURI = "http://10.240.248.242:8080";
 // end personalization
 
   var xhttp = new XMLHttpRequest();
   var userL = [];
   var typingTimer;
-  var prev = "###";
+  var prev = "@@@";
 
+  var deleteIcon = '<svg width="15" height="15" viewBox="0 0 100 100" focusable="false">' +
+                    '  <circle cx="50" cy="50" r="44" fill="none" stroke="red" stroke-width="8"></circle>' +
+		            '  <path d="M 27 27 L 72 72 z" fill="red" stroke="red" stroke-width="8" />' + 
+		            '  <path d="M 27 72 L 72 27 z" fill="red" stroke="red" stroke-width="8" />' + 
+                    '</svg>';
+					
   xhttp.onreadystatechange = function() {
     if (this.readyState == 4 && this.status == 200) {
 	   var txt = xhttp.responseText.split("|");
@@ -21,7 +28,7 @@
 	   for (var i = 0; i < txt.length; i++) {
 	     var qq = txt[i].search("please type additional characters");
 	     if (txt[i].search("please type additional characters") > 0) {
-		   prev = "###";
+		   prev = "@@@";
 		 }  
 	     item = "<option value=" + '"' + txt[i].trim() + '">';
 		 list.append(item);
@@ -31,7 +38,7 @@
   };
 
 function ADSearch(text) {
-  var uri = "http://10.240.248.242:8080/?token=" + token + "&action=search&domain=" + domain + "&search=" + text
+  var uri = queryBaseURI + "/?token=" + token + "&action=search&domain=" + domain + "&search=" + text;
   xhttp.open("GET", uri, true);
   xhttp.send();
   console.log("AD Request Sent");
@@ -62,6 +69,17 @@ $(document).ready(function(){
   });
 });
 
+function mydelete(me, id) {
+    $(me).parent().parent().remove();
+	var arr = "";
+	userL.splice(id, 1);
+	for(var i = 0; i < userL.length; i++) {
+	  arr += userL[i] + "|";
+	}
+	arr = arr.replace(/\|$/g,"");
+	$("#input").val(arr);
+}
+
 $(document).ready(function(){
  $("#userInput").keydown(function() {
   //on keydown, clear the countdown
@@ -73,17 +91,21 @@ function doAdd() {
 	var elem = $("#userInput");
 	var value = elem.val();
 	userL.push(value);
-	var str = "<div><b>Selected Users</b></div>";
+	var str = '<div><b>Selected Users</b></div> <table>';
+	var pre = '<tr><td><div onclick="mydelete(this, xxx)">' + deleteIcon + '</div></td><td width="10"/><td>';
+	var post = '</td></tr>';
 	var arr = "";
 	for(var i = 0; i < userL.length; i++) {
-	  str += userL[i] + "<br>"
-	  arr += userL[i] + "|"
+	  npre = pre.replace(/xxx/, i);
+	  str += npre + userL[i] + post;
+	  arr += userL[i] + "|";
 	}
+	str += '</table>';
 	$("#members").html(str);
 	$("#userList").empty();
 	elem.val("");
 	arr = arr.replace(/\|$/g,"");
-	$("#input").val(arr)
+	$("#input").val(arr);
 }
 
 </script>
@@ -102,7 +124,7 @@ function doAdd() {
 
 <h3>Please Select User</h3>
 <div>
-Type minimum <script>document.write(minLetters)</script> letters to start searching (after <script>document.write(Math.round(doneTypingInterval/100)/10);</script> seconds of inactivity)
+Type minimum <script>document.write(minLetters)</script> letters and wait <script>document.write(Math.round(doneTypingInterval/100)/10);</script> seconds to start searching
 <div>
 <div id="searching">&nbsp;</div>
 <input id ="userInput" size="30" list="userList" name="userList">
