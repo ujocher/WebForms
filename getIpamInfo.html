@@ -1,0 +1,80 @@
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+<script>
+
+var token = "123";
+var queryBaseURI = "https://10.240.248.242:8443";
+
+var xhttp = new XMLHttpRequest();
+
+ xhttp.onreadystatechange = function() {
+    if (this.readyState == 4 && this.status == 200) {
+	   var txt = xhttp.responseText;
+	   var json = JSON.parse(txt);
+	   var out = $("#output");
+	   out.empty();
+	   var str = '<br><br><hr width="300" align="left"><table>';
+       str += "<tr><td>IP Address:</td><td>" + json.IP + "</td></tr>";
+       str += "<tr><td>Allocation Status:</td><td>" + json.State + "</td></tr>";
+       str += "<tr><td>Device Name:</td><td>" + json.DeviceName + "</td></tr><tr><td colspan=2><br></td></tr>";
+	   if (json.hasOwnProperty('Network')) {
+	     str += "<tr><td>Network:</td><td>" + json.Network + "</td></tr>";
+	   }
+  	   if (json.hasOwnProperty('Netmask')) {
+	     str += "<tr><td>Netmask:</td><td>" + json.Netmask + "</td></tr>";
+	   }
+  	   if (json.hasOwnProperty('Gateway')) {
+	     str += "<tr><td>Gateway:</td><td>" + json.Gateway + "</td></tr>";
+	   }
+  	   if (json.hasOwnProperty('SubnetDescription')) {
+	     str += "<tr><td colspan=2><br></td></tr><tr><td>Subnet Description:</td><td>" + json.SubnetDescription + "</td></tr>";
+	   }
+
+	   str += "</table>";
+	   out.html(str);
+    }
+ };
+
+function doSearch() {
+  var text = $("#IP").val();
+  if (!text.match(/^([01]?\d\d?|2[0-4]\d|25[0-5])\.([01]?\d\d?|2[0-4]\d|25[0-5])\.([01]?\d\d?|2[0-4]\d|25[0-5])\.([01]?\d\d?|2[0-4]\d|25[0-5])$/)) {
+    console.log(text + " is not a valid IP");
+    return;
+  }	
+  var uri = queryBaseURI + "/?token=" + token + "&action=search&domain=ipam&search=" + text;
+  xhttp.open("GET", uri, true);
+  xhttp.send();
+  console.log("IPAM Request Sent");
+}
+
+  $(document).ready(function(){
+    $(".radar_button").val("Finish");
+  });
+
+
+</script>
+
+</center>
+<tr>
+<td width="20"></td>
+<td>
+<br>
+<br>
+<div width="300" align="left">
+  <label for="IP" style="padding-right: 20px">IP Address</label>
+  <input id="IP" size="15" name="IP"/>
+  <button type="button" id="check" onclick='doSearch()'>Check</button>
+</div>
+<div id="output" width="300" align="left">
+</div>
+
+<div width="300" align="left">
+  <br>
+  <hr width="300" align="left">
+  <br>
+  <button id="finish">Finish</button>
+</div>
+</td>
+</tr>
+<center>
+
+
