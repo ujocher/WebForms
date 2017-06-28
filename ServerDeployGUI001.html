@@ -1,0 +1,389 @@
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+<style>
+.tooltip {
+    position: relative;
+    display: inline-block;
+/*    border-bottom: 1px dotted black; */
+}
+
+.tooltip .tooltiptext {
+    visibility: hidden;
+    width: 200px;
+    background-color: black;
+    color: #fff;
+    text-align: left;
+    border-radius: 6px;
+    padding: 5px 10px;
+    position: absolute;
+    z-index: 1;
+    top: +20px; 
+    left: -30px;  
+
+}
+
+.tooltip .tooltiptext::after {
+    content: " ";
+    position: absolute;
+    bottom: 100%;
+    left: +30px; /* To the left of the tooltip */
+    margin-top: -5px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: transparent transparent black transparent;
+}
+
+.tooltip:hover .tooltiptext {
+    visibility: visible;
+}
+.mytab {
+  padding: 10px;
+  border-spacing: 10px;
+  width: unset;
+}  
+
+</style>
+<script>
+var data = "";
+
+var info =  '<svg width="12" height="12" viewBox="0 0 9 9" focusable="false">';
+    info += '<circle cx="4.5" cy="4.5" r="4.5" fill="blue"></circle>';
+    info += '        <rect x="4" y="4" fill="white" width="1" height="3"></rect>';
+    info += '        <rect x="4" y="2" fill="white" width="1" height="1"></rect>';
+    info += '      </svg>'
+
+  var split1 = "_";
+  var split2 = "|";
+  var data = ["loc_zone_env",
+              "DE_INT_DEV|Developement", "DE_INT_PRD|Production", "DE_INT_STG|Stage", "DE_INT_TST|Test POC", 
+              "DE_EXT_DEV|Developement", "DE_EXT_PRD|Production", "DE_EXT_STG|Stage", 
+              "US_INT_PRD|Production", "US_INT_STG|Stage", 
+			  "US_EXT_PRD|Production", "US_EXT_STG|Stage"];
+  var dataServer = ["tier_role_os",
+                    "Presentation_IIS_W2012R2|Windows 2012R2", "Presentation_IIS_W2016|Windows 2016",
+                    "Application_IIS_W2012R2|Windows 2012R2", "Application_IIS_W2012R2|Windows 2012R2",
+					"Application_none_W2012R2|Windows 2012R2", "Application_none_W2012R2|Windows 2012R2",
+                    "Database_SQL 2012_W2012R2|Windows 2012R2","Database_SQL 2012_W2016|Windows 2016",
+					"Database_SQL 2014_W2012R2|Windows 2012R2","Database_SQL 2014_W2016|Windows 2016",
+					"Database_SQL 2016_W2012R2|Windows 2012R2","Database_SQL 2016_W2016|Windows 2016",
+					"Database_none_W2012R2|Windows 2012R2","Database_none_W2016|Windows 2016",
+			        ];
+  var CPUs = ["1","2","4","6","8","10","12","14","16"];					
+  
+  var order = ["loc", "zone", "env"];
+  
+  var apps = ["uja8", "uja2", "uja5"];
+  
+  var buffer = [];
+  buffer["loc"] = 0;
+  buffer["zone"] = 1;
+  buffer["env"] = 2;
+
+  var bufferServer = [];
+  bufferServer["tier"] = 0;
+  bufferServer["role"] = 1;
+  bufferServer["os"] = 2;
+
+/* places the newTop label on top of the list and scales all elements that were above the element 
+   The result is a list of element indexes in the order of last change */
+  function updateBuffer(newTop, buffer, data) {
+    var oldIndex = buffer[newTop];
+	var order = data[0].split(split1);
+    for(var i in buffer) {
+	  if (buffer.hasOwnProperty(i)) {
+	    if (buffer[i] < oldIndex) {
+		  buffer[i]++;
+		}
+	  }
+	}
+	buffer[newTop] = 0;
+	/* generate a list of indexes orderd by last use */
+	var ret = [];
+	var found = "";
+	for(var i = 0; i < order.length; i++) {
+	  for(var obj in buffer) {   /* find label with rank i*/
+   	    if (buffer.hasOwnProperty(obj)) {
+		  if (buffer[obj] == i) {
+		    found = obj
+		  }
+		}
+	  }
+      ret[i] = order.indexOf(found);
+	}
+	return ret;
+  }
+
+/* updates the dropdownlist with id ListID with newValues and select oldValue if still part of the list */  
+  function updateDropdown(listID, newValues, oldValue) {
+  
+    console.log("updating: " + listID);
+    var $dropList = $(listID);
+    $dropList.empty();
+	for(var index in newValues) {
+	  if (newValues.hasOwnProperty(index)) {
+        var value = newValues[index];	   
+	    var pos = value.indexOf(split2);
+	    if (pos == -1) { 
+	      var v1 = value;
+		  var v2 = value;
+	    } else {
+	      varr = value.split(split2);
+	      var v1 = varr[0];
+		  var v2 = varr[1];
+	    }
+	    if (v1 === oldValue) {
+         var str = '<option value="' + v1 + '" selected>' + v2 + '</option>'
+	    } else {
+	      var str = '<option value="' + v1 + '">' + v2 + '</option>'
+        }	  
+        $dropList.append(str);
+	  }
+    }
+  }
+
+/* Generates a list for each dropdownlist based on the order given by indexes and on the current selected values */
+  function extractList(indexes, values, data) {
+    console.log("extractList");
+	
+	var count = indexes.length;
+    var len = data.length;
+	var lists = [];
+
+	for(var i = 0; i < count;i++) {    /* create an empty list for all dropdown lists */
+	  lists.push({});
+	}  
+	for (var j = 1; j < count; j++) {    /* starts from 1 as the first is the list that changed and only the other need to be updated based on the choice */
+	  var ind = indexes[j]
+      for (var i = 1; i < len; i++) {    /* first element (0) is the list order */
+        var elems =  data[i].split(split1);
+        var bool = true;
+        for (var k = 0; k < j; k++) {    /* second dropdown depends on first, third from first and second, etc. */
+		  var elem = elems[indexes[k]]
+		  var pos = elem.indexOf(split2);
+	      if (pos != -1) {
+            elem = elem.split(split2)[0];
+          }			
+          bool = bool && (elem == values[indexes[k]]);
+	    }
+		if (bool) {     /* if the element is a valid value based on the previous dropdown choices add it to the list */
+		  console.log("j: " + j + "   " + data[i]);
+		  lists[ind][elems[ind]] = elems[ind];
+		}
+	  }
+    }	  
+    return lists;
+  }  
+  
+  function dropdownChanged(me, data) {
+    var label = me.id;
+    console.log("DropDown " + label + " changed");
+	
+	if (label == "AppList") {
+	  return;
+	}   
+    var order = data[0].split(split1);
+	var values = [];
+	for(var i = 0; i < order.length; i++) {
+	  var id = "#" + order[i];
+	  values[i] = $(id).val();
+	}
+	var ret = updateBuffer(label, buffer, data);
+	var lists = extractList(ret, values, data);
+
+	for(var i = 1; i < ret.length; i++) {
+	  var id = "#" + order[ret[i]];
+	  updateDropdown(id, lists[ret[i]], values[ret[i]]);
+	}
+}
+
+function populateList(listID, data, index) {  
+
+  var list = [];
+  var orderH = [];
+  if (index == 0) {
+    for (var i = 0; i < data.length; i++) {    /* standard arrays start from 0 */
+      var elem = data[i];
+      list[elem] = elem;
+    }
+	var old = list[0];
+  } else {	
+    var order = data[0].split(split1);
+    for (var i = 0; i < order.length; i++) {
+      orderH[order[i]] = i;
+    }
+    for (var i = 1; i < data.length; i++) {    /* first element (0) is the list order */
+      var elem = (data[i].split(split1)[orderH[index]]);
+      list[elem] = elem;
+    }
+  }  
+  updateDropdown(listID, list, old);
+}
+  
+  
+$(document).ready(function(){
+  var newArr = apps.sort();
+  var list = $("#AppList");
+  list.empty();
+
+  item = '<option value="0">-- Choose AppShortCode --</option>';
+  list.append(item);
+  for (var i = 0; i < newArr.length; i++) {
+    var val = newArr[i].trim();
+    item = "<option value=" + '"' + val + '">' + val + '</option>';
+    list.append(item);
+  }
+  populateList("#tier", dataServer, "tier");
+  populateList("#role", dataServer, "role");
+  populateList("#os", dataServer, "os");
+  populateList("#ncpu", CPUs, 0);
+//  dropdownChanged($("#role"), dataServer); 
+});
+
+
+function newApp(me) {
+  $("#a003").show();
+  $("#a004").hide();
+  $("#a005").hide();
+  $("#a006").hide();
+  $("#servers").hide();
+}
+
+function newAppSubmit(me, val) {
+
+  var elem = $("#AppShortCode").val();
+  apps.push(elem)
+  var newArr = apps.sort();
+  var list = $("#AppList");
+  list.empty();
+
+  item = '<option value="0">-- Choose AppShortCode --</option>';
+  list.append(item);
+  for (var i = 0; i < newArr.length; i++) {
+    var val = newArr[i].trim();
+	if (val == elem) {
+      item = "<option value=" + '"' + val + '" selected>' + val + '</option>';
+	} else {  
+	  item = "<option value=" + '"' + val + '">' + val + '</option>';
+	}   
+    list.append(item);
+  }
+  $("#a003").hide();
+  $("#a004").show();
+  $("#a005").show();
+  $("#a006").show();
+  $("#servers").show();
+}
+
+
+</script>
+<div>
+<table class="mytab">
+  <tr><td colspan=3 align="center">Please Select Application or press new to create a new one</td></tr>
+  <tr><td>
+      <label for="AppList">Select App</label></td>
+      <td><select id="AppList" onchange='dropdownChanged(this, apps)' name="AppList">
+      </select>
+	</td>
+    <td><button onclick='newApp(this)'>New App</button></td>
+	</tr>
+	<tr/>
+	<tr id="a004">
+	<td>
+    <span>Region
+        <div class="tooltip"><script>document.write(info)</script>
+          <span class="tooltiptext">Please select the region where you want to deploy the servers</span>
+        </div>
+      </span>
+  </td>
+      <td>
+      <select id="loc" onchange='dropdownChanged(this, data)' name="loc">
+        <option value="DE" selected>DE</option>
+        <option value="US" >US</option>
+      </select>
+	  <br>
+    </td>
+
+  </tr>
+    <tr id="a005">
+    <td>
+	  <span>Zone
+        <div class="tooltip"><script>document.write(info)</script>
+		<span class="tooltiptext">Please select the zone for the servers.<br>
+		                            EXT for external facing applications and 
+									INT for internal applications</span>
+        </div>
+      </span>
+	</td>
+    <td>
+      <select id="zone"  onchange='dropdownChanged(this, data)' name="zone">
+        <option value="INT" selected>INT</option>
+        <option value="EXT" >EXT</option>
+      </select>
+      <br>
+	</td>
+  </tr>
+  <tr id="a006">
+    <td>
+	  <span>Environment
+        <div class="tooltip"><script>document.write(info)</script>
+        <span class="tooltiptext">Please select the Environment for for the servers.</span>
+        </div>
+      </span>
+	</td>
+	<td>
+      <select id="env"  onchange='dropdownChanged(this, data)' name="env">
+        <option value="DEV" selected>Development</option>
+        <option value="PRD" >Production</option>
+        <option value="STG" >Stage</option>
+        <option value="TST" >Test POC</option>
+      </select>
+     <br>
+    </td>
+  </tr>
+</table>
+<table class="mytab" id="servers">  
+  <tr>
+    <td><b>Tier</b></td>
+    <td><b>Role</b></td>
+	<td><b>Servers [#]</b></td>
+    <td><b>Operating System</b></td>
+	<td><b>CPU [#]</b></td>
+	<td><b>RAM [GB]</b></td>
+	<td><b>Load Balancing</b></td>
+  </tr>
+  <tr>
+  <td align="center"><select id="tier"  onchange='dropdownChanged(this, dataServer)' name="tier"></select></td>
+  <td align="center"><select id="role"  onchange='dropdownChanged(this, dataServer)' name="role"></select></td>
+  <td align="center"><select id="nservers"  onchange='dropdownChanged(this, dataServer)' name="nservers">
+    <option value="1" >1</option><option value="2" >2</option>
+	<option value="3" >3</option><option value="4" >4</option>
+	<option value="5" >5</option><option value="6" >6</option>
+	<option value="7" >7</option><option value="8" >8</option>
+	</select></td>
+  <td align="center"><select id="os"  onchange='dropdownChanged(this, dataServer)' name="os"></select></td>
+  <td align="center"><select id="ncpu" name="ncpu"></select></td>
+  <td align="center"><input id="ram" size="4" name="ram"/></td>
+  <td align="center"><input type="checkbox" id="lbcheck" onselect="lbSelected(me)" />
+    <select id="lbports"  onchange='dropdownChanged(this, dataServer)' name="lbports">
+    <option value="80" >http (80)</option>
+    <option value="80to443" >http redirect to https</option>
+	<option value="443" >https (443)</option>
+	</select></td>
+  </tr>	  
+</table>
+
+</div>
+<div id="a003" hidden>
+<b>New App<b><p>
+<table>
+<tr><td><label for="AppName">Application Name</label></td><td><input id ="AppName" size="30"/></td></tr>
+<tr><td><label for="WBS">WBS Code</label></td><td><input id ="WBS" size="30"/></td></tr>
+<tr><td><label for="Owner">Owner email</label></td><td><input id ="Owner" size="30"/></td></tr>
+<tr><td><label for="SLA">SLA</label></td><td><input id ="SLA" size="30"/></td></tr>
+<tr><td><label for="BackupOption">BackupOption</label></td><td><input id ="BackupOption" size="30"/></td></tr>
+<tr><td><label for="AppShortCode">AppShortCode</label></td><td><input id ="AppShortCode" size="30"/></td></tr>
+</table>
+<td><button onclick='newAppSubmit(this)'>Submit</button></td>
+</div>
+
+	
+	
