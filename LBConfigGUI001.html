@@ -1,0 +1,419 @@
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+<style>
+.tooltip {
+    position: relative;
+    display: inline-block;
+/*    border-bottom: 1px dotted black; */
+}
+
+.tooltip .tooltiptext {
+    visibility: hidden;
+    width: 200px;
+    background-color: black;
+    color: #fff;
+    text-align: left;
+    border-radius: 6px;
+    padding: 5px 10px;
+    position: absolute;
+    z-index: 1;
+    top: +20px; 
+    left: -30px;  
+
+}
+
+.tooltip .tooltiptext::after {
+    content: " ";
+    position: absolute;
+    bottom: 100%;
+    left: +30px; /* To the left of the tooltip */
+    margin-top: -5px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: transparent transparent black transparent;
+}
+
+.tooltip:hover .tooltiptext {
+    visibility: visible;
+}
+.mytab {
+  padding: 20px;
+  border-spacing: 10px;
+  width: unset;
+}  
+
+</style>
+<script>
+var data = "";
+
+var info =  '<svg width="10" height="10" viewBox="0 0 9 9" focusable="false">';
+    info += '<circle cx="4.5" cy="4.5" r="4.5" fill="blue"></circle>';
+    info += '        <rect x="4" y="4" fill="white" width="1" height="3"></rect>';
+    info += '        <rect x="4" y="2" fill="white" width="1" height="1"></rect>';
+    info += '      </svg>'
+
+  var split1 = "_";
+  var split2 = "|";
+  var data = ["loc_zone_env",
+              "DE_INT_DEV|Developement", "DE_INT_PRD|Production", "DE_INT_STG|Stage", "DE_INT_TST|Test POC", 
+              "DE_EXT_DEV|Developement", "DE_EXT_PRD|Production", "DE_EXT_STG|Stage", 
+              "US_INT_PRD|Production", "US_INT_STG|Stage", 
+			  "US_EXT_PRD|Production", "US_EXT_STG|Stage"];
+  var dataServer = ["tier_role_os",
+                    "Presentation_IIS_W2012R2|Windows 2012R2", "Presentation_IIS_W2016|Windows 2016",
+                    "Application_IIS_W2012R2|Windows 2012R2", "Application_IIS_W2012R2|Windows 2012R2",
+					"Application_none_W2012R2|Windows 2012R2", "Application_none_W2012R2|Windows 2012R2",
+                    "Database_SQL 2012_W2012R2|Windows 2012R2","Database_SQL 2012_W2016|Windows 2016",
+					"Database_SQL 2014_W2012R2|Windows 2012R2","Database_SQL 2014_W2016|Windows 2016",
+					"Database_SQL 2016_W2012R2|Windows 2012R2","Database_SQL 2016_W2016|Windows 2016",
+					"Database_none_W2012R2|Windows 2012R2","Database_none_W2016|Windows 2016",
+			        ];
+  var CPUs = ["1","2","4","6","8","10","12","14","16"];					
+  var PortList = ["http (80)", "https (443)", "http (80) to https (443) redirect"];
+  var PortL = [];
+  var ServerL = [];
+  
+  var deleteIcon = '<svg width="15" height="15" viewBox="0 0 100 100" focusable="false">' +
+                   '  <circle cx="50" cy="50" r="44" fill="none" stroke="red" stroke-width="8"></circle>' +
+	               '  <path d="M 27 27 L 72 72 z" fill="red" stroke="red" stroke-width="12" />' + 
+	               '  <path d="M 27 72 L 72 27 z" fill="red" stroke="red" stroke-width="12" />' + 
+                   '</svg>';
+
+  
+  var order = ["loc", "zone", "env"];
+  
+  var apps = ["uja8", "uja2", "uja5"];
+  
+  var buffer = [];
+  buffer["loc"] = 0;
+  buffer["zone"] = 1;
+  buffer["env"] = 2;
+
+  var bufferServer = [];
+  bufferServer["tier"] = 0;
+  bufferServer["role"] = 1;
+  bufferServer["os"] = 2;
+
+/* places the newTop label on top of the list and scales all elements that were above the element 
+   The result is a list of element indexes in the order of last change */
+  function updateBuffer(newTop, buffer, data) {
+    var oldIndex = buffer[newTop];
+	var order = data[0].split(split1);
+    for(var i in buffer) {
+	  if (buffer.hasOwnProperty(i)) {
+	    if (buffer[i] < oldIndex) {
+		  buffer[i]++;
+		}
+	  }
+	}
+	buffer[newTop] = 0;
+	/* generate a list of indexes orderd by last use */
+	var ret = [];
+	var found = "";
+	for(var i = 0; i < order.length; i++) {
+	  for(var obj in buffer) {   /* find label with rank i*/
+   	    if (buffer.hasOwnProperty(obj)) {
+		  if (buffer[obj] == i) {
+		    found = obj
+		  }
+		}
+	  }
+      ret[i] = order.indexOf(found);
+	}
+	return ret;
+  }
+
+/* updates the dropdownlist with id ListID with newValues and select oldValue if still part of the list */  
+  function updateDropdown(listID, newValues, oldValue) {
+  
+    console.log("updating: " + listID);
+    var $dropList = $(listID);
+    $dropList.empty();
+	for(var index in newValues) {
+	  if (newValues.hasOwnProperty(index)) {
+        var value = newValues[index];	   
+	    var pos = value.indexOf(split2);
+	    if (pos == -1) { 
+	      var v1 = value;
+		  var v2 = value;
+	    } else {
+	      varr = value.split(split2);
+	      var v1 = varr[0];
+		  var v2 = varr[1];
+	    }
+	    if (v1 === oldValue) {
+         var str = '<option value="' + v1 + '" selected>' + v2 + '</option>'
+	    } else {
+	      var str = '<option value="' + v1 + '">' + v2 + '</option>'
+        }	  
+        $dropList.append(str);
+	  }
+    }
+  }
+
+/* Generates a list for each dropdownlist based on the order given by indexes and on the current selected values */
+  function extractList(indexes, values, data) {
+    console.log("extractList");
+	
+	var count = indexes.length;
+    var len = data.length;
+	var lists = [];
+
+	for(var i = 0; i < count;i++) {    /* create an empty list for all dropdown lists */
+	  lists.push({});
+	}  
+	for (var j = 1; j < count; j++) {    /* starts from 1 as the first is the list that changed and only the other need to be updated based on the choice */
+	  var ind = indexes[j]
+      for (var i = 1; i < len; i++) {    /* first element (0) is the list order */
+        var elems =  data[i].split(split1);
+        var bool = true;
+        for (var k = 0; k < j; k++) {    /* second dropdown depends on first, third from first and second, etc. */
+		  var elem = elems[indexes[k]]
+		  var pos = elem.indexOf(split2);
+	      if (pos != -1) {
+            elem = elem.split(split2)[0];
+          }			
+          bool = bool && (elem == values[indexes[k]]);
+	    }
+		if (bool) {     /* if the element is a valid value based on the previous dropdown choices add it to the list */
+		  console.log("j: " + j + "   " + data[i]);
+		  lists[ind][elems[ind]] = elems[ind];
+		}
+	  }
+    }	  
+    return lists;
+  }  
+  
+  function dropdownChanged(me, data) {
+    var label = me.id;
+    console.log("DropDown " + label + " changed");
+	
+	if (label == "AppList") {
+	  return;
+	}   
+    var order = data[0].split(split1);
+	var values = [];
+	for(var i = 0; i < order.length; i++) {
+	  var id = "#" + order[i];
+	  values[i] = $(id).val();
+	}
+	var ret = updateBuffer(label, buffer, data);
+	var lists = extractList(ret, values, data);
+
+	for(var i = 1; i < ret.length; i++) {
+	  var id = "#" + order[ret[i]];
+	  updateDropdown(id, lists[ret[i]], values[ret[i]]);
+	}
+}
+
+function populateList(listID, data, index) {  
+
+  var list = [];
+  var orderH = [];
+  if (index == 0) {
+    for (var i = 0; i < data.length; i++) {    /* standard arrays start from 0 */
+      var elem = data[i];
+      list[elem] = elem;
+    }
+	var old = list[0];
+  } else {	
+    var order = data[0].split(split1);
+    for (var i = 0; i < order.length; i++) {
+      orderH[order[i]] = i;
+    }
+    for (var i = 1; i < data.length; i++) {    /* first element (0) is the list order */
+      var elem = (data[i].split(split1)[orderH[index]]);
+      list[elem] = elem;
+    }
+  }  
+  updateDropdown(listID, list, old);
+}
+  
+  
+$(document).ready(function(){
+   var list = $("#portList");
+   list.empty();
+   var item = "";
+   for (var i = 0; i < PortList.length; i++) {
+     item = "<option value=" + '"' + PortList[i].trim() + '">';
+     list.append(item);
+   }
+});
+
+
+function newApp(me) {
+  $("#a003").show();
+  $("#a004").hide();
+  $("#a005").hide();
+  $("#a006").hide();
+  $("#servers").hide();
+}
+
+function newAppSubmit(me, val) {
+
+  var elem = $("#AppShortCode").val();
+  apps.push(elem)
+  var newArr = apps.sort();
+  var list = $("#AppList");
+  list.empty();
+
+  item = '<option value="0">-- Choose AppShortCode --</option>';
+  list.append(item);
+  for (var i = 0; i < newArr.length; i++) {
+    var val = newArr[i].trim();
+	if (val == elem) {
+      item = "<option value=" + '"' + val + '" selected>' + val + '</option>';
+	} else {  
+	  item = "<option value=" + '"' + val + '">' + val + '</option>';
+	}   
+    list.append(item);
+  }
+  $("#a003").hide();
+  $("#a004").show();
+  $("#a005").show();
+  $("#a006").show();
+  $("#servers").show();
+}
+
+function mydelete(me, list, id) {
+    $(me).parent().parent().remove();
+	list.splice(id, 1);
+}
+
+function addPort(me) {
+	var elem = $("#ports");
+	var value = elem.val();
+	var nport = value.replace(/.*\((.*)\).*/, '$1');
+	console.log("Port: " + nport);
+	if (!nport.match(/^\d+$/)) {
+	  console.log(value + " is not a valid port");
+	  return;
+	} else if (nport > 65535 || nport < 1) {
+      console.log(value + " is not a valid port");
+	  return;
+	}
+	var but1 = $("#radio1")[0].checked;
+	var but2 = $("#radio2")[0].checked;
+	console.log("radio: " + but1 + "  " + but2);
+	if ($("#radio1")[0].checked) {
+	  value += " TCP";
+	} else {  
+	  value += " UDP";
+	}
+	PortL.push(value);
+//	var str = '<div><b>Selected Ports</b></div> <table>';
+	var str = '<table>';
+	var pre = '<tr><td><div onclick="mydelete(this, PortL, xxx)">' + deleteIcon + '</div></td><td width="10"/><td>';
+	var post = '</td></tr>';
+	var arr = "";
+	for(var i = 0; i < PortL.length; i++) {
+	  npre = pre.replace(/xxx/, i);
+	  str += npre + PortL[i] + post;
+	  arr += PortL[i] + "|";
+	}
+	str += '</table>';
+	$("#portL").html(str);
+	$("#portL").show	();
+	elem.val("");
+}
+
+function addServer(me) {
+	var elem = $("#bs1");
+	var value = elem.val();
+	if (!value.match(/^([01]?\d\d?|2[0-4]\d|25[0-5])\.([01]?\d\d?|2[0-4]\d|25[0-5])\.([01]?\d\d?|2[0-4]\d|25[0-5])\.([01]?\d\d?|2[0-4]\d|25[0-5])$/)) {
+	  console.log(value + " is not a valid IP");
+	  return;
+	}  
+	ServerL.push(value);
+//	var str = '<div><b>Selected Backend Servers</b></div> <table>';
+    var str = '<table>';
+	var pre = '<tr><td><div onclick="mydelete(this, ServerL, xxx)">' + deleteIcon + '</div></td><td width="10"/><td>';
+	var post = '</td></tr>';
+	var arr = "";
+	for(var i = 0; i < ServerL.length; i++) {
+	  npre = pre.replace(/xxx/, i);
+	  str += npre + ServerL[i] + post;
+	  arr += ServerL[i] + "|";
+	}
+	str += '</table>';
+	$("#serverL").html(str);
+	$("#serverL").show();
+}
+
+function submit() {
+  
+}
+$(document).ready(function(){
+  $("#sfqdn").blur(function(){
+    var val = $(this).val();
+    if(val.match(/(pwc|pwcinternal)\.com/)) {
+      $("#sfqdno").html(val);
+ 	  $("#sfqdno").show();
+ 	  $(this).css("background-color", "#ffffff");
+	} else {
+	  $("#sfqdno").html("");
+ 	  $("#sfqdno").hide();
+    }	
+  });
+});
+
+$(document).ready(function(){
+  $("#sfqdn").focus(function(){
+        $(this).css("background-color", "#cccccc");
+    });
+  });
+
+</script>
+
+<table class="mytab" id="servers">
+  <tr>
+    <td align="center"><label for="sfqdn"><b>Service FQDN</b></label></td>
+    <td align="center"><label for="bs1"><b>Backend Server IP</b></label></td>
+	<td align="center" colspan="3"><label for="ports"><b>Port</b></label></td></tr>
+  <tr>
+  <td><input id="sfqdn" size="30" name="Service FQDN"/></td>
+      <td><input id="bs1" size="30" name="Server"/>&nbsp;<button onclick='addServer(this)'>Add</button></td>
+      <td><input id ="ports" size="30" list="portList" name="ports"><datalist id="portList"></datalist>
+  </input></td><td>
+  <input type="radio" name="radio" id="radio1" checked />
+    <label for="radio1">TCP</label><br>
+    <input type="radio" name="radio" id="radio2" />
+    <label for="radio2">UDP</label></td><td>
+  <button onclick='addPort(this)'>Add</button></td>
+  </tr>	
+  <tr border="1px solid black"><td><br></td></tr>
+    <tr>
+    <td align="center"><label for="sfqdn"><b>Service FQDN</b></label></td>
+    <td align="center"><label for="bs1"><b>Backend Server IP</b></label></td>
+	<td align="center" colspan="3"><label for="ports"><b>Port</b></label></td></tr>
+  <tr style="background-color:lightyellow;padding:20px;">
+    <td><b><div id="sfqdno" style="background-color:lightyellow;padding:20px;" hidden ></div></b></td>
+	<td><div id="serverL" style="background-color:lightyellow;padding:20px;" hidden /></td>
+    <td><div id="portL" style="background-color:lightyellow;padding:20px;" hidden /></td></tr>
+</table>
+
+<!--
+<table class="mytab" id="servers">
+  <tr><td><label for="sfqdn">Service FQDN</label></td><td><label for="bs1">Backend Server IP</label></td><td>
+  <tr><td align="center" valign="top"><label for="sfqdn">Service FQDN</label></td><td colspan="2"><input id="sfqdn" size="30" name="Service FQDN"/></td></tr>
+  <tr><td align="center" valign="top"><label for="bs1">Backend Server IP</label></td><td colspan="2"><input id="bs1" size="30" name="Server"/><div id="serverL"/></td><td><button onclick='addServer(this)'>Add Server</button></td></tr>
+  <tr><td align="center" valign="top"><label for="ports">Port</label></td><td valign="top"><input id ="ports" size="30" list="portList" name="ports"><datalist id="portList"></datalist>
+  </input>
+  <td>
+    <input type="radio" name="radio" id="radio1" checked />
+    <label for="radio1">TCP</label><br>
+    <input type="radio" name="radio" id="radio2" />
+    <label for="radio2">UDP</label>
+  </td><td><button onclick='addPort(this)'>Add Port</button></td>
+  </tr>	
+  <tr><td colspan="3"><div id="serverL2"/></td></tr>
+  <tr><td colspan="3"><div id="portL"/></td></tr>
+</table>
+
+
+-->
+<button onclick='submit(this)'>Submit</button>
+
+
+
+	
+	
