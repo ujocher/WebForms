@@ -1,0 +1,134 @@
+<head>
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+</head>
+
+<script>
+// personalize behaviour here
+  var token = 123;
+  var domain = "glblblue";
+  var minLetters = "3";
+  var doneTypingInterval = 1000;  //time in ms, 1 second for example
+  var queryBaseURI = "http://10.240.240.35";
+// end personalization
+
+  var xhttp = new XMLHttpRequest();
+  var userL = [];
+  var typingTimer;
+  var prev = "@@@";
+
+  var deleteIcon = '<svg width="15" height="15" viewBox="0 0 100 100" focusable="false">' +
+                    '  <circle cx="50" cy="50" r="44" fill="none" stroke="red" stroke-width="8"></circle>' +
+		            '  <path d="M 27 27 L 72 72 z" fill="red" stroke="red" stroke-width="8" />' + 
+		            '  <path d="M 27 72 L 72 27 z" fill="red" stroke="red" stroke-width="8" />' + 
+                    '</svg>';
+					
+  xhttp.onreadystatechange = function() {
+    if (this.readyState == 4 && this.status == 200) {
+	   var ret = xhttp.responseText;
+	   var jret = JSON.parse(ret);
+	   var list = $("#userList");
+	   list.empty();
+	   for (var i = 0; i < jret.length - 1; i++) {
+//	     var qq = txt[i].search("please type additional characters");
+//	     if (txt[i].search("please type additional characters") > 0) {
+//		   prev = "@@@";
+//		 }  
+	     item = "<option value=" + '"' + jret[i].SamAccountName + " (" + jret[i].DisplayName + ')">';
+		 list.append(item);
+	   }
+       $("#searching").html("&nbsp;");
+    }
+  };
+
+function ADSearch(text) {
+  var uri = queryBaseURI + "/api/products/?domain=" + domain + "&search=" + text;
+  xhttp.open("GET", uri, true);
+  xhttp.send();
+  console.log("AD Request Sent");
+}
+
+function doSearch(text) {
+    console.log("doSearch " + text);
+	if (text.length >= minLetters) {
+	  var pos = text.search(prev)
+	  if (pos < 0) {
+	    console.log("AD search: " + text);
+        $("#searching").html("searching...");
+	    ADSearch(text);
+	    prev = text;
+	  } else {
+	    console.log("new search is a substring of previous");
+      }	
+	} else {
+	  console.log("less than " + minLetters + " keys pressed");
+	}
+}
+
+$(document).ready(function(){
+ $("#userInput").keyup(function() {
+  clearTimeout(typingTimer);
+  var text = this.value;
+  typingTimer = setTimeout(function() { doSearch(text) }, doneTypingInterval);
+  });
+});
+
+function mydelete(me, id) {
+    $(me).parent().parent().remove();
+	var arr = "";
+	userL.splice(id, 1);
+	for(var i = 0; i < userL.length; i++) {
+	  arr += userL[i] + "|";
+	}
+	arr = arr.replace(/\|$/g,"");
+	$("#input").val(arr);
+}
+
+$(document).ready(function(){
+ $("#userInput").keydown(function() {
+  //on keydown, clear the countdown
+  clearTimeout(typingTimer);
+  });
+});
+
+function doAdd() {
+	var elem = $("#userInput");
+	var value = elem.val();
+	userL.push(value);
+	var str = '<div><b>Selected Users</b></div> <table>';
+	var pre = '<tr><td><div onclick="mydelete(this, xxx)">' + deleteIcon + '</div></td><td width="10"/><td>';
+	var post = '</td></tr>';
+	var arr = "";
+	for(var i = 0; i < userL.length; i++) {
+	  npre = pre.replace(/xxx/, i);
+	  str += npre + userL[i] + post;
+	  arr += userL[i] + "|";
+	}
+	str += '</table>';
+	$("#members").html(str);
+	$("#userList").empty();
+	elem.val("");
+	arr = arr.replace(/\|$/g,"");
+	$("#input").val(arr);
+}
+
+</script>
+
+<div id="page-wrap">
+
+<h3>Please Select User</h3>
+<div>
+Type minimum <script>document.write(minLetters)</script> letters and wait <script>document.write(Math.round(doneTypingInterval/100)/10);</script> seconds to start searching
+<div>
+<div id="searching">&nbsp;</div>
+<input id ="userInput" size="30" list="userList" name="userList">
+<datalist id="userList">
+</datalist>
+</input>
+<button type="button" id="add" onclick='doAdd()'>Add</button>
+<br>
+<span></span>
+<br><br>
+<span id="members"></span>
+<br>
+</div>
+
